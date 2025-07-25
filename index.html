@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Exchange</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { font-family: Arial; text-align: center; margin-top: 50px; }
+    #g_id_onload { margin: 20px auto; }
+  </style>
+</head>
+<body>
+  <h1>YouTube Subscriber Exchange</h1>
+  
+  <div id="g_id_onload"
+       data-client_id="YOUR_GOOGLE_CLIENT_ID"
+       data-callback="handleLogin">
+  </div>
+  <div class="g_id_signin"
+       data-type="standard"
+       data-size="large">
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <h2>Welcome, <span id="username"></span></h2>
+    <div id="channels"></div>
+  </div>
+
+  <script>
+    function handleLogin(response) {
+      fetch('api/auth.js?action=login&token=' + response.credential)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('dashboard').style.display = 'block';
+          document.getElementById('username').textContent = data.name;
+          loadChannels();
+        });
+    }
+
+    function loadChannels() {
+      fetch('api/data.js?action=getChannels')
+        .then(res => res.json())
+        .then(channels => {
+          const container = document.getElementById('channels');
+          channels.forEach(channel => {
+            container.innerHTML += `
+              <div class="channel">
+                <h3>${channel.name}</h3>
+                <button onclick="exchange('${channel.id}')">Exchange</button>
+              </div>
+            `;
+          });
+        });
+    }
+
+    function exchange(channelId) {
+      // Exchange logic would go here
+    }
+  </script>
+</body>
+    </html>
