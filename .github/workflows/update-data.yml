@@ -9,14 +9,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Update data.json
+      - name: Update data
         run: |
-          echo '${{ toJson(github.event.client_payload.data) }}' > data.json
+          # Preserve existing data
+          if [ -f data.json ]; then
+            jq '. * $new' data.json --argjson new "${{ toJson(github.event.client_payload.data) }}" > temp.json
+            mv temp.json data.json
+          else
+            echo '${{ toJson(github.event.client_payload.data) }}' > data.json
+          fi
           
       - name: Commit changes
         run: |
-          git config --global user.name "GitHub Actions"
+          git config --global user.name "GitHub Bot"
           git config --global user.email "actions@github.com"
           git add data.json
-          git commit -m "Data update: ${{ github.event.client_payload.message }}"
+          git commit -m "Update: ${{ github.event.client_payload.message }}"
           git push
