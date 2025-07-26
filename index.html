@@ -1,60 +1,122 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>YouTube Exchange</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <title>YouTube Sub Swap</title>
   <style>
-    body { font-family: Arial; text-align: center; margin-top: 50px; }
-    #g_id_onload { margin: 20px auto; }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+      background: #f9f9f9;
+    }
+    h1 {
+      color: #ff0000;
+    }
+    .step {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #ff0000;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background: #cc0000;
+    }
+    #friends-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .friend {
+      width: 150px;
+      margin: 10px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
-  <h1>YouTube Subscriber Exchange</h1>
+
+<h1>YouTube Sub Swap</h1>
+<p>Help your friends grow by exchanging subscriptions!</p>
+
+<div class="step" id="step1">
+  <h2>Step 1: Connect Your YouTube Account</h2>
+  <button onclick="signIn()">Connect with Google</button>
+</div>
+
+<div class="step" id="step2" style="display:none;">
+  <h2>Step 2: Choose Friends to Swap With</h2>
+  <div id="friends-list">
+    <!-- Friends will appear here -->
+  </div>
+</div>
+
+<div class="step" id="step3" style="display:none;">
+  <h2>Step 3: Complete the Swap!</h2>
+  <p>You've agreed to swap with <span id="friend-name">[Friend]</span></p>
+  <button onclick="openYouTube()">Subscribe to Their Channel</button>
+  <p>After subscribing, ask them to subscribe to yours!</p>
+</div>
+
+<script>
+  // Simple version without APIs - just manual swapping
   
-  <div id="g_id_onload"
-       data-client_id="55873258958-126c00b3kq0cjsgeciimqtcieoin8915.apps.googleusercontent.com"
-       data-callback="handleLogin">
-  </div>
-  <div class="g_id_signin"
-       data-type="standard"
-       data-size="large">
-  </div>
+  // Sample friends list (edit these with your friends' channels)
+  const friends = [
+    { name: "Alex", channel: "https://youtube.com/c/AlexChannel" },
+    { name: "Sam", channel: "https://youtube.com/c/SamVlogs" },
+    { name: "Taylor", channel: "https://youtube.com/user/TaylorGames" }
+  ];
 
-  <div id="dashboard" style="display:none;">
-    <h2>Welcome, <span id="username"></span></h2>
-    <div id="channels"></div>
-  </div>
+  function signIn() {
+    alert("This would normally connect to YouTube. For this simple version, we'll continue!");
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+    showFriends();
+  }
 
-  <script>
-    function handleLogin(response) {
-      fetch('api/auth.js?action=login&token=' + response.credential)
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById('dashboard').style.display = 'block';
-          document.getElementById('username').textContent = data.name;
-          loadChannels();
-        });
-    }
+  function showFriends() {
+    const list = document.getElementById('friends-list');
+    friends.forEach(friend => {
+      const div = document.createElement('div');
+      div.className = 'friend';
+      div.innerHTML = `
+        <h3>${friend.name}</h3>
+        <button onclick="startSwap('${friend.name}', '${friend.channel}')">
+          Swap With ${friend.name}
+        </button>
+      `;
+      list.appendChild(div);
+    });
+  }
 
-    function loadChannels() {
-      fetch('api/data.js?action=getChannels')
-        .then(res => res.json())
-        .then(channels => {
-          const container = document.getElementById('channels');
-          channels.forEach(channel => {
-            container.innerHTML += `
-              <div class="channel">
-                <h3>${channel.name}</h3>
-                <button onclick="exchange('${channel.id}')">Exchange</button>
-              </div>
-            `;
-          });
-        });
-    }
+  function startSwap(name, channel) {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'block';
+    document.getElementById('friend-name').textContent = name;
+    // Store the channel URL for the subscribe button
+    window.channelUrl = channel;
+  }
 
-    function exchange(channelId) {
-      // Exchange logic would go here
-    }
-  </script>
+  function openYouTube() {
+    window.open(window.channelUrl, '_blank');
+  }
+</script>
+
 </body>
-    </html>
+                                                        </html>
