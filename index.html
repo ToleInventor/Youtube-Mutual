@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>YouTube Sub Swap</title>
+  <title>YouTube Exchange</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      text-align: center;
       background: #f9f9f9;
     }
     h1 {
-      color: #ff0000;
+      color: #FF0000;
+      text-align: center;
     }
-    .step {
+    .box {
       background: white;
       border-radius: 10px;
       padding: 20px;
@@ -22,101 +23,262 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     button {
-      background: #ff0000;
+      background: #FF0000;
       color: white;
       border: none;
-      padding: 12px 20px;
-      font-size: 16px;
+      padding: 10px 15px;
       border-radius: 5px;
       cursor: pointer;
-      margin: 10px;
+      font-size: 16px;
     }
-    button:hover {
-      background: #cc0000;
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
     }
-    #friends-list {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+    button:hover:not(:disabled) {
+      background: #CC0000;
     }
-    .friend {
-      width: 150px;
-      margin: 10px;
-      padding: 15px;
+    .channel {
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #dashboard, #channel-form {
+      display: none;
+    }
+    .pending {
+      opacity: 0.6;
     }
   </style>
 </head>
 <body>
 
-<h1>YouTube Sub Swap</h1>
-<p>Help your friends grow by exchanging subscriptions!</p>
+<h1>YouTube Exchange</h1>
 
-<div class="step" id="step1">
-  <h2>Step 1: Connect Your YouTube Account</h2>
-  <button onclick="signIn()">Connect with Google</button>
-</div>
-
-<div class="step" id="step2" style="display:none;">
-  <h2>Step 2: Choose Friends to Swap With</h2>
-  <div id="friends-list">
-    <!-- Friends will appear here -->
+<div id="auth-section" class="box">
+  <h2>Get Started</h2>
+  <p>Sign in to register your channel</p>
+  <div id="g_id_onload"
+       data-client_id="55873258958-126c00b3kq0cjsgeciimqtcieoin8915.apps.googleusercontent.com"
+       data-callback="handleLogin">
+  </div>
+  <div class="g_id_signin"
+       data-type="standard"
+       data-size="large">
   </div>
 </div>
 
-<div class="step" id="step3" style="display:none;">
-  <h2>Step 3: Complete the Swap!</h2>
-  <p>You've agreed to swap with <span id="friend-name">[Friend]</span></p>
-  <button onclick="openYouTube()">Subscribe to Their Channel</button>
-  <p>After subscribing, ask them to subscribe to yours!</p>
+<div id="channel-form" class="box">
+  <h2>Register Your Channel</h2>
+  <p>Enter your YouTube channel URL:</p>
+  <input type="text" id="channel-url" placeholder="https://youtube.com/c/YourChannel">
+  <button onclick="registerChannel()">Register</button>
+</div>
+
+<div id="dashboard" class="box">
+  <h2>Welcome, <span id="username"></span>!</h2>
+  <p>Your channel: <span id="user-channel"></span></p>
+  
+  <h3>Available Channels</h3>
+  <div id="channels-list">
+    <!-- Channels will appear here -->
+  </div>
+
+  <h3>Pending Exchanges</h3>
+  <div id="pending-list">
+    <!-- Pending exchanges will appear here -->
+  </div>
 </div>
 
 <script>
-  // Simple version without APIs - just manual swapping
-  
-  // Sample friends list (edit these with your friends' channels)
-  const friends = [
-    { name: "Alex", channel: "https://youtube.com/c/AlexChannel" },
-    { name: "Sam", channel: "https://youtube.com/c/SamVlogs" },
-    { name: "Taylor", channel: "https://youtube.com/user/TaylorGames" }
-  ];
+  // Configuration
+  const CONFIG = {
+    googleClientId: '55873258958-126c00b3kq0cjsgeciimqtcieoin8915.apps.googleusercontent.com',
+    dataFile: 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/data.json'
+  };
 
-  function signIn() {
-    alert("This would normally connect to YouTube. For this simple version, we'll continue!");
-    document.getElementById('step1').style.display = 'none';
-    document.getElementById('step2').style.display = 'block';
-    showFriends();
+  // Global variables
+  let currentUser = null;
+  let allChannels = [];
+  let pendingExchanges = [];
+
+  // Handle Google login
+  function handleLogin(response) {
+    console.log("Google login response:", response);
+    
+    // For demo - in real app you would verify this with backend
+    currentUser = {
+      name: "You", // Would get from Google profile
+      email: "your@email.com",
+      channel: ""
+    };
+    
+    document.getElementById('auth-section').style.display = 'none';
+    document.getElementById('channel-form').style.display = 'block';
+    document.getElementById('username').textContent = currentUser.name;
+    
+    // Load existing data
+    loadData();
   }
 
-  function showFriends() {
-    const list = document.getElementById('friends-list');
-    friends.forEach(friend => {
+  // Load data from GitHub JSON file
+  async function loadData() {
+    try {
+      const response = await fetch(CONFIG.dataFile);
+      const data = await response.json();
+      
+      allChannels = data.channels || [];
+      pendingExchanges = data.exchanges || [];
+      
+      console.log("Loaded data:", data);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      allChannels = [];
+      pendingExchanges = [];
+    }
+  }
+
+  // Save data to GitHub (simplified - in reality you'd need GitHub API or backend)
+  async function saveData() {
+    const data = {
+      channels: allChannels,
+      exchanges: pendingExchanges,
+      updated: new Date().toISOString()
+    };
+    
+    console.log("Would save to GitHub:", data);
+    // In a real app, you would:
+    // 1. Use GitHub API to update the file
+    // 2. Or use GitHub Pages with a JSON file in your repo
+    // For now we'll use localStorage as fallback
+    localStorage.setItem('youtubeExchangeData', JSON.stringify(data));
+  }
+
+  // Register channel
+  async function registerChannel() {
+    const channelUrl = document.getElementById('channel-url').value.trim();
+    
+    if (!channelUrl.includes('youtube.com')) {
+      alert("Please enter a valid YouTube URL");
+      return;
+    }
+    
+    currentUser.channel = channelUrl;
+    
+    // Add to channels list if not exists
+    if (!allChannels.some(c => c.url === channelUrl)) {
+      allChannels.push({
+        url: channelUrl,
+        owner: currentUser.email,
+        subscribed: []
+      });
+    }
+    
+    await saveData();
+    
+    // Show dashboard
+    document.getElementById('channel-form').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('user-channel').textContent = channelUrl;
+    
+    // Load all channels
+    updateChannelLists();
+  }
+
+  // Update both available and pending channels lists
+  function updateChannelLists() {
+    const channelsList = document.getElementById('channels-list');
+    const pendingList = document.getElementById('pending-list');
+    
+    channelsList.innerHTML = '';
+    pendingList.innerHTML = '';
+    
+    // Filter channels that:
+    // 1. Aren't the current user's channel
+    // 2. Haven't been subscribed to yet
+    // 3. Aren't in pending exchanges where the other user needs to subscribe back
+    const availableChannels = allChannels.filter(channel => {
+      return channel.url !== currentUser.channel &&
+             !channel.subscribed.includes(currentUser.email) &&
+             !pendingExchanges.some(ex => 
+               ex.from === currentUser.email && ex.to === channel.owner
+             );
+    });
+    
+    // Display available channels
+    availableChannels.forEach(channel => {
       const div = document.createElement('div');
-      div.className = 'friend';
+      div.className = 'channel';
       div.innerHTML = `
-        <h3>${friend.name}</h3>
-        <button onclick="startSwap('${friend.name}', '${friend.channel}')">
-          Swap With ${friend.name}
+        <div>
+          <strong>${channel.url.split('/').pop()}</strong>
+          <p>Owner: ${channel.owner}</p>
+        </div>
+        <button onclick="startExchange('${channel.url}', '${channel.owner}')">
+          Exchange Subs
         </button>
       `;
-      list.appendChild(div);
+      channelsList.appendChild(div);
+    });
+    
+    // Display pending exchanges
+    pendingExchanges.forEach(exchange => {
+      const channel = allChannels.find(c => c.owner === exchange.to);
+      if (!channel) return;
+      
+      const div = document.createElement('div');
+      div.className = 'channel pending';
+      div.innerHTML = `
+        <div>
+          <strong>${channel.url.split('/').pop()}</strong>
+          <p>Waiting for them to subscribe back to you</p>
+        </div>
+        <button disabled>Pending...</button>
+      `;
+      pendingList.appendChild(div);
     });
   }
 
-  function startSwap(name, channel) {
-    document.getElementById('step2').style.display = 'none';
-    document.getElementById('step3').style.display = 'block';
-    document.getElementById('friend-name').textContent = name;
-    // Store the channel URL for the subscribe button
-    window.channelUrl = channel;
+  // Start exchange process
+  async function startExchange(channelUrl, channelOwner) {
+    if (confirm(`You'll be redirected to subscribe to:\n${channelUrl}\n\nAfter subscribing, they will need to subscribe back to you!`)) {
+      // Add to pending exchanges
+      pendingExchanges.push({
+        from: currentUser.email,
+        to: channelOwner,
+        started: new Date().toISOString()
+      });
+      
+      // Mark in channels data
+      const channel = allChannels.find(c => c.url === channelUrl);
+      if (channel) {
+        channel.subscribed.push(currentUser.email);
+      }
+      
+      await saveData();
+      updateChannelLists();
+      
+      // Open their channel
+      window.open(channelUrl, '_blank');
+    }
   }
 
-  function openYouTube() {
-    window.open(window.channelUrl, '_blank');
-  }
+  // Initialize
+  (async function() {
+    // Try loading from localStorage if GitHub fails
+    const localData = localStorage.getItem('youtubeExchangeData');
+    if (localData) {
+      const data = JSON.parse(localData);
+      allChannels = data.channels || [];
+      pendingExchanges = data.exchanges || [];
+    }
+  })();
 </script>
 
 </body>
-                                                        </html>
+  </html>
