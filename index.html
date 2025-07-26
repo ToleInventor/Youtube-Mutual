@@ -4,27 +4,33 @@
   <title>YouTube Exchange</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    /* Your existing CSS styles */
-    .hidden { display: none; }
-    .spinner {
-      border: 4px solid rgba(0,0,0,0.1);
-      border-radius: 50%;
-      border-top: 4px solid #FF0000;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
     }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .box {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .hidden { display: none; }
+    #debug {
+      background: #333;
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+      font-family: monospace;
     }
   </style>
 </head>
 <body>
 
 <div id="auth-section" class="box">
-  <h2>Welcome to YouTube Exchange</h2>
+  <h2>Sign In</h2>
   <div id="g_id_onload"
        data-client_id="55873258958-126c00b3kq0cjsgeciimqtcieoin8915.apps.googleusercontent.com"
        data-callback="handleLogin">
@@ -32,89 +38,94 @@
 </div>
 
 <div id="loading" class="box hidden">
-  <div class="spinner"></div>
   <p>Loading your data...</p>
 </div>
 
 <div id="channel-form" class="box hidden">
   <h2>Register Your Channel</h2>
-  <p>Enter your YouTube channel URL:</p>
   <input type="text" id="channel-url" placeholder="https://youtube.com/c/YourChannel">
-  <button onclick="registerChannel()">Complete Registration</button>
+  <button onclick="registerChannel()">Register</button>
 </div>
 
 <div id="dashboard" class="box hidden">
-  <h2>Welcome back, <span id="username"></span>!</h2>
-  <div class="channel-info">
-    <h3>Your Channel:</h3>
-    <p id="user-channel"></p>
-    <img id="channel-thumbnail" src="" width="80" style="border-radius:50%">
-  </div>
-  
-  <!-- Rest of your dashboard UI -->
+  <h2>Welcome, <span id="username"></span></h2>
+  <p>Your channel: <span id="user-channel"></span></p>
 </div>
 
-<script>
-  const REPO = 'ToleInventor/Youtube-Mutual';
-  let currentUser = null;
+<div id="debug" class="hidden"></div>
 
-  // Handle Google login
-  async function handleLogin(response) {
-    document.getElementById('auth-section').classList.add('hidden');
-    document.getElementById('loading').classList.remove('hidden');
-    
-    // Verify token (in production, verify properly)
-    const user = await verifyGoogleToken(response.credential);
-    currentUser = user;
-    
-    // Check if user exists in system
-    const userData = await checkUserRegistration(user.email);
-    
-    if (userData.channel) {
-      showDashboard(userData);
-    } else {
-      showRegistrationForm();
+<script>
+  // Debug mode - set to false for production
+  const DEBUG = true;
+  const REPO = 'ToleInventor/Youtube-Mutual';
+  
+  if (DEBUG) {
+    document.getElementById('debug').classList.remove('hidden');
+  }
+
+  function log(message) {
+    if (DEBUG) {
+      const debugDiv = document.getElementById('debug');
+      debugDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+      console.log(message);
     }
   }
 
-  async function verifyGoogleToken(token) {
-    // Simplified - in production verify properly
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return {
-      name: payload.name || "User",
-      email: payload.email,
-      picture: payload.picture
-    };
+  async function handleLogin(response) {
+    log('Google login response received');
+    showSection('loading');
+    
+    try {
+      // Simple token decoding (in production, verify properly)
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      log(`Decoded user: ${payload.email}`);
+      
+      currentUser = {
+        name: payload.name || "User",
+        email: payload.email,
+        picture: payload.picture
+      };
+      
+      // Check registration status
+      const data = await loadData();
+      log('Data loaded successfully');
+      
+      const userChannel = data.channels.find(c => c.owner === currentUser.email);
+      if (userChannel) {
+        showDashboard(userChannel);
+      } else {
+        showSection('channel-form');
+      }
+    } catch (error) {
+      log(`Error: ${error.message}`);
+      alert("Login failed. Please try again.");
+      showSection('auth-section');
+    }
   }
 
-  async function checkUserRegistration(email) {
-    const data = await loadData();
-    const userChannel = data.channels.find(c => c.owner === email);
-    return {
-      channel: userChannel,
-      exchanges: data.exchanges.filter(e => e.from === email || e.to === email)
-    };
+  function showSection(sectionId) {
+    ['auth-section', 'loading', 'channel-form', 'dashboard'].forEach(id => {
+      document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById(sectionId).classList.remove('hidden');
   }
 
   async function loadData() {
-    const response = await fetch(`https://raw.githubusercontent.com/${REPO}/main/data.json?t=${Date.now()}`);
-    return await response.json();
-  }
-
-  function showDashboard(userData) {
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-    
-    document.getElementById('username').textContent = currentUser.name;
-    document.getElementById('user-channel').textContent = userData.channel.name;
-    document.getElementById('channel-thumbnail').src = userData.channel.thumbnail;
-    
-    // Load other dashboard data...
-  }
-
-  function showRegistrationForm() {
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('channel-form').classList.remove('hidden');
+    try {
+      log(`Loading data from GitHub...`);
+      const response = await fetch(`https://raw.githubusercontent.com/${REPO}/main/data.json?t=${Date.now()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      log(`Data loaded: ${JSON.stringify(data).substring(0, 100)}...`);
+      return data;
+    } catch (error) {
+      log(`Failed to load data: ${error}`);
+      return { channels: [], exchanges: [] }; // Return empty data if load fails
+    }
   }
 
   async function registerChannel() {
@@ -124,17 +135,70 @@
       return;
     }
     
-    // Add channel to data
-    const newChannel = {
-      url: channelUrl,
-      owner: currentUser.email,
-      name: `Channel of ${currentUser.name}`,
-      thumbnail: currentUser.picture,
-      subscribed: [],
-      date_registered: new Date().toISOString()
-    };
+    showSection('loading');
     
-    await updateData(data => {
-      data.channels.push(newChannel);
-      return data;
-    });
+    try {
+      const newChannel = {
+        url: channelUrl,
+        owner: currentUser.email,
+        name: `Channel of ${currentUser.name}`,
+        date_registered: new Date().toISOString()
+      };
+      
+      log(`Registering new channel: ${JSON.stringify(newChannel)}`);
+      
+      // Update data
+      const currentData = await loadData();
+      currentData.channels.push(newChannel);
+      
+      await updateData(currentData);
+      showDashboard(newChannel);
+    } catch (error) {
+      log(`Registration failed: ${error}`);
+      alert("Registration failed. Please try again.");
+      showSection('channel-form');
+    }
+  }
+
+  function showDashboard(channel) {
+    document.getElementById('username').textContent = currentUser.name;
+    document.getElementById('user-channel').textContent = channel.url;
+    showSection('dashboard');
+    log(`Dashboard shown for ${currentUser.email}`);
+  }
+
+  async function updateData(newData) {
+    try {
+      log(`Attempting to update data...`);
+      const response = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event_type: 'update_data',
+          client_payload: {
+            message: `Update for ${currentUser.email}`,
+            data: newData
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+      }
+      
+      log(`Update triggered successfully`);
+      return await response.json();
+    } catch (error) {
+      log(`Update failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Initialize
+  log('Application initialized');
+</script>
+</body>
+    </html>
