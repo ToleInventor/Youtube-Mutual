@@ -1,4 +1,4 @@
 {
-  "channels": [],
+  "channels": ["https://m.youtube.com/feed/library"],
   "exchanges": []
 }
